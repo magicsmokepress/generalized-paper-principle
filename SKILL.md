@@ -39,9 +39,15 @@ on two whole classes of task, and cannot feel that it erred:
   the c's it counts something it cannot see, says "one c", and doubles down when
   challenged.
 
-Both are intrinsic to every current model, frontier ones included — a bigger
-model lowers the rate, it does not remove it. The fix is the same for both:
-don't compute it in the model's head, externalize it (see the principle below).
+This bites hardest wherever there is **no guaranteed code interpreter**: local
+models, hosted small/non-frontier endpoints, and — for character work — frontier
+models too. The two classes decay differently with scale: **arithmetic degrades
+as models grow; character work doesn't.** A frontier model mostly gets
+`17×23−4³` right, yet still miscounts the r's in strawberry — tokenization does
+not care about parameter count, and a model that *has* a tool often doesn't
+reach for it on a question that looks trivial. One thesis, two decay curves.
+The fix is the same for both: don't compute it in the model's head,
+externalize it (see the principle below).
 
 ## The principle
 
@@ -54,7 +60,7 @@ to hide; it is what every competent reasoner does. Concretely:
 | Arithmetic (multi-step, powers, %, roots, factorials) | a deterministic **calculator** |
 | Count / index / reverse letters in a KNOWN word | **deterministic string ops**, or **render + look + mark** with a vision model |
 | Multi-step word problems | **decompose** into expressions, compute each deterministically, then synthesize |
-| Non-arithmetic correctness (logic/factual) | a **stronger model** for a second opinion |
+| Non-arithmetic correctness (logic/factual) | a **bigger local model** — or an explicitly opt-in remote one — for a second opinion |
 
 Behind all of it: a **deterministic backstop** that recomputes the answer and,
 on a mismatch, hands it back for re-derivation — so the model *feels* the miss
@@ -84,7 +90,10 @@ layer is the ergonomics — never the reverse.
   decompose-then-ground (`PATTERNS.md` §3): the model outputs the ordered
   arithmetic as complete expressions, `calc` computes each, the model
   synthesizes with correct numbers in hand. The planning step may run on a
-  stronger model — send only the bare problem.
+  bigger local model; a remote planner is an explicit opt-in fenced by the
+  fail-closed rule — send only the bare problem. Constrain the planner's output
+  format with a grammar (GBNF / structured outputs) where the backend supports
+  it — see `PATTERNS.md` §3.
 - **Backstop** — `verify_answer` (below) recomputes the arithmetic in a prompt
   and flags a mismatch, exactly as it does for character ops.
 
