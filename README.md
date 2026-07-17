@@ -47,15 +47,18 @@ far (temperature 0, 12 items per column):
 | `gemma-4-26B-A4B-it-Q5_K_M` (same model, thinking truncated at 400 tokens) | 3/12 bare | 11/12 bare |
 | `anthropic/claude-opus-4.8` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `openai/gpt-5.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `x-ai/grok-4.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | **11/12 → 12/12** (1 caught, re-derived correct), 0 false flags |
 
 Honest findings from the measured rows:
 
-- **The frontier char-counting cell came back empty.** Opus 4.8 and GPT-5.5
-  saturate this battery — the famous character failures are trained around at
-  the frontier, at least for short common words at temperature 0. If a frontier
-  lift exists it lives in harder character work (long rare strings, adversarial
-  spacing, non-Latin scripts); this battery doesn't reach it, and we won't
-  claim what we didn't measure.
+- **The frontier char-counting cell is model-dependent.** Opus 4.8 and GPT-5.5
+  saturate this battery — the famous character failures are trained around
+  there, at least for short common words at temperature 0. Grok 4.5 aced the
+  arithmetic and still miscounted the e's in "bookkeeper"; the backstop flagged
+  it, the model re-derived, and the final answer was correct — the full
+  verify-then-re-derive loop closing on a frontier model. Where the cell is
+  empty, we don't claim a lift; harder character work (long rare strings,
+  adversarial spacing, non-Latin scripts) remains unmeasured.
 - **The lift concentrates down-spectrum and under constrained thinking.** A
   local 26B reasoning model saturates the battery with unbounded thinking, then
   loses most of its arithmetic (12/12 → 3/12) when its reasoning is truncated —
