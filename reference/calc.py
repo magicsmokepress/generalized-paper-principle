@@ -24,7 +24,11 @@ def _normalize(expr: str) -> str:
     s = (s.replace("×", "*").replace("·", "*").replace("∙", "*")
            .replace("÷", "/").replace("^", "**")
            .replace("−", "-").replace("–", "-").replace("—", "-")
-           .replace("π", "pi").replace(",", ""))
+           .replace("π", "pi"))
+    # Strip only digit-GROUPING commas ("1,000"), not argument separators —
+    # min(1,2) / max(3, 10) / gcd(12, 18) must keep theirs.
+    s = re.sub(r"(?<=\d),(?=\d{3}\b)", "", s)
+    # Factorial applies to literal integers only (500!) — not (3+2)! or 5!!.
     return re.sub(r"(\d+)\s*!", r"factorial(\1)", s)
 
 
@@ -32,9 +36,19 @@ _BINOPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
            ast.Div: operator.truediv, ast.FloorDiv: operator.floordiv,
            ast.Mod: operator.mod, ast.Pow: operator.pow}
 _UNARY = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+_MAX_FACT = 10_000
+_MAX_RESULT_DIGITS = 100_000
+
+
+def _factorial(n):
+    if n > _MAX_FACT:
+        raise ValueError(f"factorial argument too large (max {_MAX_FACT})")
+    return math.factorial(n)
+
+
 _FUNCS = {"sqrt": math.sqrt, "abs": abs, "round": round, "floor": math.floor,
           "ceil": math.ceil, "log": math.log10, "ln": math.log, "log2": math.log2,
-          "sin": math.sin, "cos": math.cos, "tan": math.tan, "factorial": math.factorial,
+          "sin": math.sin, "cos": math.cos, "tan": math.tan, "factorial": _factorial,
           "exp": math.exp, "gcd": math.gcd, "min": min, "max": max}
 _CONSTS = {"pi": math.pi, "e": math.e, "tau": math.tau}
 _MAX_POW = 1_000_000
@@ -50,6 +64,8 @@ def _eval(node):
             base, exp = _eval(node.left), _eval(node.right)
             if abs(exp) > _MAX_POW:
                 raise ValueError("exponent too large")
+            if abs(base) > 1 and abs(exp) * math.log10(abs(base)) > _MAX_RESULT_DIGITS:
+                raise ValueError("result too large")
             return operator.pow(base, exp)
         return _BINOPS[type(node.op)](_eval(node.left), _eval(node.right))
     if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY:

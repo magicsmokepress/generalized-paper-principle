@@ -18,8 +18,10 @@ import re
 
 try:
     from .calc import calc          # installed as a package
+    from .char_ops import count_letter
 except ImportError:
     from calc import calc           # run from the reference/ directory
+    from char_ops import count_letter
 
 # Matches plain and comma-grouped numbers ("1,234.56", "$1,234"); commas are
 # stripped before comparison.
@@ -30,14 +32,29 @@ _SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹"
 _OPS = rf"+\-*/×÷−–—^!{_SUP}"
 _ECHARS = rf"[0-9.,()\s{_OPS}]"
 _TERM = rf"[0-9!{_SUP}]"
-_EXPR_RE = re.compile(rf"\(*\s*\d{_ECHARS}*[{_OPS}]{_ECHARS}*{_TERM}|\d\s*!")
+_EXPR_RE = re.compile(rf"\(*\s*\d{_ECHARS}*[{_OPS}]{_ECHARS}*{_TERM}|\d+\s*!")
 _BINOP_RE = re.compile(rf"[{_OPS}]")
+# A bare chain of hyphen-joined numbers is a date / version range / phone
+# number / page range / score ("2024-12-25", "3.12-3.13", "555-1234", "10-15"),
+# NOT subtraction. Treating it as arithmetic false-flags correct answers, which
+# violates the prime directive. Spaced minus ("17 - 4"), U+2212, or any other
+# operator in the expression still counts as real arithmetic.
+_HYPHEN_CHAIN = re.compile(r"[\d.]+(?:-[\d.]+)+$")
 
 
 def _answer_has(value, answer):
-    for n in (float(x.replace(",", "")) for x in _NUM_IN_ANSWER.findall(answer or "")):
-        if abs(n - value) < 1e-6 or round(n, 2) == round(float(value), 2):
-            return True
+    if isinstance(value, int) and abs(value) > 10**15:
+        # Too large to compare reliably against prose (models answer "a
+        # 1135-digit number" or scientific notation) — stay silent rather
+        # than risk flagging a correct answer.
+        return True
+    for x in _NUM_IN_ANSWER.findall(answer or ""):
+        try:
+            n = float(x.replace(",", ""))
+            if abs(n - value) < 1e-6 or round(n, 2) == round(float(value), 2):
+                return True
+        except (OverflowError, ValueError):
+            continue
     return False
 
 
@@ -51,6 +68,8 @@ def _arith_findings(prompt, answer):
             continue
         if len(re.findall(r"\d", expr)) < 2 and "!" not in expr:
             continue
+        if _HYPHEN_CHAIN.fullmatch(expr):
+            continue                          # date/range/phone shape, not math
         val, err = calc(expr)
         if err is None and not _answer_has(val, answer):
             out.append({"op": expr, "expected": val})
@@ -135,7 +154,7 @@ def _string_findings(prompt, answer):
             letter = singles[0] if len(singles) == 1 else None
         claimed = _claimed_numbers(answer)
         if word and letter and claimed:
-            correct = word.lower().count(letter.lower())
+            correct = count_letter(word, letter)
             if correct not in claimed:
                 out.append({"op": f'the number of "{letter}" in "{word}"', "expected": correct})
     return out
@@ -175,4 +194,14 @@ if __name__ == "__main__":
                              "2+2 is 4, and there are 3 a's in banana.")
     assert verify_answer("How many 'a' are in 'banana'? And what is 2+2?",
                          "2+2 is 4, and there are 2 a's in banana.")  # both claims wrong -> flag
+    # Hyphen chains are dates/ranges/phones/scores, NOT subtraction.
+    assert not verify_answer("How many days from 2024-12-25 to 2025-01-01?", "7 days")
+    assert not verify_answer("What changed in Python 3.12-3.13?", "The REPL, mostly. 2 big things.")
+    assert not verify_answer("Call 555-1234; how many 'a' in banana?", "3")
+    assert not verify_answer("Read pages 10-15. How long?", "about 20 minutes")
+    assert verify_answer("What is 100 - 37?", "53")               # spaced minus is real math
+    # Factorial: whole literal extracted; huge results never flag prose.
+    assert verify_answer("What is 6!?", "719")
+    assert not verify_answer("What is 6!?", "720")
+    assert not verify_answer("What is 500!?", "That is a 1135-digit number.")
     print("verify self-check ok (flags wrongs, no false positives, no pronoun false-flag)")

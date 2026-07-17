@@ -132,9 +132,11 @@ keep in your setup.
   - `verify.py` — `verify_answer(prompt, answer)` recomputes and returns findings
     to hand back for re-derivation. Conservative by design: it stays silent
     when extraction is ambiguous, and produced zero false flags across every
-    measured row below — but that is an observed rate, not a proof. (One
-    false-flag path we found by trying to break it — a compound answer whose
-    first number belongs to a different question — is fixed and now tested.)
+    measured row below — but that is an observed rate, not a proof. (The
+    false-flag paths found so far by fuzzing it — compound answers whose first
+    number belongs to a different question, and hyphenated dates / version
+    ranges / phone numbers / page ranges parsed as subtraction — are fixed and
+    now tested. Keep fuzzing; issues welcome.)
 - **Harness patterns** (`PATTERNS.md`) — framework-agnostic pseudocode you adapt
   to your agent loop, plus a drop-in operating-principle paragraph.
 

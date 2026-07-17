@@ -24,6 +24,30 @@ def test_leading_paren_expression():
     assert not verify_answer("What is (847 − 269) × 34?", "19652")
 
 
+def test_hyphen_chains_are_not_subtraction():
+    assert not verify_answer("How many days from 2024-12-25 to 2025-01-01?", "7 days")
+    assert not verify_answer("What changed in Python 3.12-3.13?", "The REPL. 2 big things.")
+    assert not verify_answer("Call 555-1234; how many 'a' in banana?", "3")
+    assert not verify_answer("Read pages 10-15. How long?", "about 20 minutes")
+    assert not verify_answer("The score was 21-14; who won?", "The home team.")
+    assert verify_answer("What is 100 - 37?", "53")             # spaced minus is real math
+
+
+def test_compound_answer_not_false_flagged():
+    assert not verify_answer("How many 'a' are in 'banana'? And what is 2+2?",
+                             "2+2 is 4, and there are 3 a's in banana.")
+    assert verify_answer("How many 'a' are in 'banana'? And what is 2+2?",
+                         "2+2 is 4, and there are 2 a's in banana.")
+
+
+def test_factorial_extraction_and_huge_values():
+    assert verify_answer("What is 6!?", "719")                  # wrong -> flag
+    assert not verify_answer("What is 6!?", "720")
+    f = verify_answer("What is 12!?", "a big number, maybe 479001601")
+    assert f and f[0]["op"] == "12!"                            # whole literal, not last digit
+    assert not verify_answer("What is 500!?", "That is a 1135-digit number.")  # huge -> silent, no crash
+
+
 def test_count_quoted():
     assert verify_answer('How many "c" in "Accessories"?', "one")    # wrong (2)
     assert not verify_answer('How many "c" in "Accessories"?', "two")

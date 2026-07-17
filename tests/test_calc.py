@@ -28,10 +28,20 @@ def test_human_notation():
     assert calc("5!")[0] == 120
 
 
+def test_multiarg_functions_keep_their_commas():
+    assert calc("min(1,2)") == (1, None)
+    assert calc("max(3, 10)") == (10, None)
+    assert calc("gcd(12, 18)") == (6, None)
+    assert calc("1,234,567 + 1") == (1234568, None)      # grouping commas still stripped
+
+
 def test_refuses_unsafe():
     assert calc("__import__('os')")[0] is None          # no code execution
     assert calc("9**9**9")[0] is None                    # no runaway exponent
     assert calc("open('/etc/passwd')")[0] is None        # no calls to non-whitelisted names
+    assert calc("9999999!")[0] is None                   # factorial magnitude cap (no CPU burn)
+    assert calc("999999**999999")[0] is None             # result-size cap (no CPU burn)
+    assert calc("100!")[0] is not None                   # sane factorials still work
 
 
 def test_errors():
