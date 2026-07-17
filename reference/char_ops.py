@@ -18,6 +18,7 @@ from __future__ import annotations
 import base64
 import io
 import os
+import unicodedata
 from typing import Callable
 
 # A perception backend: PNG bytes -> recognized text.
@@ -25,19 +26,39 @@ Reader = Callable[[bytes], str]
 
 
 # ── COUNTING (deterministic, guaranteed correct, no model) ─────────────────
+# Unicode scope: input is NFC-normalized, comparison is case-insensitive via
+# lower() (length-preserving; casefold's ß→ss would change counts). Combining
+# marks stay attached to their base on reverse ("café" -> "éfac", not "e´fac").
+# Full UAX #29 grapheme clusters (ZWJ emoji, flags) are out of scope — use the
+# `regex` module's \X if you need them.
+def _nfc(s: str) -> str:
+    return unicodedata.normalize("NFC", s)
+
+
 def count_letter(word: str, letter: str) -> int:
-    return word.lower().count(letter.lower())
+    return _nfc(word).lower().count(_nfc(letter).lower())
 
 
 def char_at(word: str, n: int, from_end: bool = False) -> str | None:
     """1-indexed character; from_end=True counts from the last character."""
+    word = _nfc(word)
     if not (1 <= n <= len(word)):
         return None
     return word[-n] if from_end else word[n - 1]
 
 
 def reverse_word(word: str) -> str:
-    return word[::-1]
+    clusters, cur = [], ""
+    for ch in _nfc(word):
+        if cur and unicodedata.combining(ch):
+            cur += ch
+        else:
+            if cur:
+                clusters.append(cur)
+            cur = ch
+    if cur:
+        clusters.append(cur)
+    return "".join(reversed(clusters))
 
 
 # ── PERCEPTION (pluggable; needed only for image-sourced words) ────────────
@@ -138,6 +159,11 @@ if __name__ == "__main__":
     assert char_at("kompressor", 4, from_end=True) == "s"
     assert char_at("python", 2) == "y"
     assert reverse_word("semaphore") == "erohpames"
+    # Unicode: NFC normalization + combining marks stay attached on reverse.
+    assert count_letter("caf\u00e9", "\u00e9") == 1
+    assert count_letter("cafe\u0301", "\u00e9") == 1   # decomposed input, composed letter
+    assert reverse_word("cafe\u0301") == "\u00e9fac"   # accent stays on the e
+    assert char_at("caf\u00e9", 1, from_end=True) == "\u00e9"
     # Perception is pluggable — a fake reader proves counting runs on ITS output.
     fake = lambda png: "Accessories"
     assert visual_spell("Accessories", "c", reader=fake)["count"] == 2

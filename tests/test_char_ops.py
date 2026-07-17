@@ -23,6 +23,14 @@ def test_reverse():
     assert reverse_word("orange") == "egnaro"
 
 
+def test_unicode_nfc_and_combining_marks():
+    assert count_letter("caf\u00e9", "\u00e9") == 1   # composed
+    assert count_letter("cafe\u0301", "\u00e9") == 1  # decomposed input, composed letter
+    assert count_letter("caf\u00e9", "e\u0301") == 1  # composed input, decomposed letter
+    assert reverse_word("cafe\u0301") == "\u00e9fac"  # accent stays on the e
+    assert char_at("caf\u00e9", 1, from_end=True) == "\u00e9"
+
+
 def test_pluggable_reader_counts_on_its_output():
     # Perception is swappable; counting is deterministic on whatever it returns.
     fake_reader = lambda png: "Accessories"
