@@ -27,8 +27,10 @@ restating).
 - **Deterministic tools** (`reference/`) — pure functions, no model in the loop
   for the actual computation. **Guaranteed correct. Drop-in.**
   - `calc.py` — AST-safe calculator (`calc("17 × 23 − 4³") → 327`).
-  - `char_ops.py` — `count_letter`, `char_at`, `reverse_word`, plus `visual_spell`
-    (render → vision-model marks each letter → count; needs a VLM endpoint + Pillow).
+  - `char_ops.py` — deterministic `count_letter` / `char_at` / `reverse_word`,
+    plus `count_letter_in_image` / `visual_spell` with a **pluggable perception
+    reader** (VLM, Tesseract, Coral, cloud — any `png->str`); counting stays
+    deterministic.
   - `verify.py` — `verify_answer(prompt, answer)` recomputes and returns findings
     to hand back for re-derivation. Conservative: never false-flags a correct answer.
 - **Harness patterns** (`PATTERNS.md`) — framework-agnostic pseudocode you adapt
@@ -36,13 +38,19 @@ restating).
 
 ## Requirements
 
-**No vision model is needed for the guaranteed path.** The deterministic tools
-(`calc`, `count_letter`, `char_at`, `reverse_word`, `verify_answer`) are pure
-Python — no model at all. Word-problem decomposition needs any text LLM. Only
-`visual_spell` — the method where the model counts letters *with its eyes* —
-needs a vision model + Pillow, and it is optional (for guaranteed character
-results, use the deterministic ops; without vision you can also fall back to
-text enumeration). See [`SKILL.md`](SKILL.md) § *Requirements & fallbacks*.
+**No model of any kind is needed for the guaranteed path.** `calc`,
+`count_letter`, `char_at`, `reverse_word`, and `verify_answer` are pure Python.
+Word-problem decomposition needs any text LLM (no vision).
+
+The character method splits into **pluggable perception** and **deterministic
+counting** — and perception is only needed when the word comes from an *image*
+(camera/photo), not when it is already text. The perception step is a swappable
+`reader(png_bytes) -> str`: use a vision-enabled model, a dedicated small VLM
+(env `VLM_URL`/`VLM_MODEL`), **Tesseract** (CPU, no service), a **Coral/Edge-TPU**
+OCR model, or a cloud OCR — whatever hardware you have. The count is always
+deterministic, so accuracy is bounded only by the reader, and a word you already
+have as text needs no reader at all. See [`SKILL.md`](SKILL.md) § *Perception is
+pluggable; counting is deterministic*.
 
 ## Quick start
 

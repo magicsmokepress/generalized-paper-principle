@@ -1,20 +1,30 @@
-"""Character operations for LLM agents — deterministic + a visualize-and-mark path.
+"""Character operations for LLM agents.
 
-The deterministic functions (count_letter, char_at, reverse_word) are exact and
-should be the guarantee. `visual_spell` is the model-in-the-loop "render → look →
-mark → count" method for when you want the model to *do* it with its eyes rather
-than trust its token-sense; it is high-probability, not certain — back it with
-the deterministic check.
+Design for universality — TWO separable concerns:
+
+  1. PERCEPTION: turning pixels into letters. Only needed when the word is NOT
+     already clean text (it came from a camera/screenshot/photo). This is a
+     PLUGGABLE backend — a `reader(png_bytes) -> str`. Bring whatever you have:
+     an OpenAI-compatible vision model, Tesseract, a Coral/Edge-TPU OCR model,
+     a cloud OCR API. Perception is the imperfect layer.
+  2. COUNTING / INDEXING / REVERSING: deterministic, exact, no model. This is
+     the guarantee, and it runs on whatever text perception produced.
+
+If the word is already text, skip perception entirely — `count_letter` etc. are
+exact and need nothing. Perception is required ONLY for image-sourced words.
 """
 from __future__ import annotations
 
 import base64
 import io
 import os
-import re
+from typing import Callable
+
+# A perception backend: PNG bytes -> recognized text.
+Reader = Callable[[bytes], str]
 
 
-# ── Deterministic (guaranteed correct) ────────────────────────────────────
+# ── COUNTING (deterministic, guaranteed correct, no model) ─────────────────
 def count_letter(word: str, letter: str) -> int:
     return word.lower().count(letter.lower())
 
@@ -30,25 +40,53 @@ def reverse_word(word: str) -> str:
     return word[::-1]
 
 
-# ── Visualize → mark → count (model-in-the-loop) ───────────────────────────
-# Requires an OpenAI-compatible vision endpoint. Configure via env:
-#   VLM_URL   (default http://localhost:1234/v1)
-#   VLM_MODEL (default the server's default; set explicitly for most servers)
-# and Pillow (`pip install Pillow`).
-VLM_URL = os.environ.get("VLM_URL", "http://localhost:1234/v1")
-VLM_MODEL = os.environ.get("VLM_MODEL", "")
-_FONTS = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-]
-_MARK_RE = re.compile(r"([A-Za-z])\s*[-–—:]\s*(yes|no)\b", re.I)
-_ANSWER_RE = re.compile(r"ANSWER:\s*(\d+)", re.I)
+# ── PERCEPTION (pluggable; needed only for image-sourced words) ────────────
+def vlm_reader(url: str | None = None, model: str | None = None,
+               timeout: float = 60.0) -> Reader:
+    """Built-in reader backed by an OpenAI-compatible VISION endpoint. Configure
+    via args or env VLM_URL / VLM_MODEL. Prompts the model to TRANSCRIBE (not
+    count) — transcription is easier and more reliable for a VLM than counting,
+    and the deterministic layer does the counting."""
+    url = (url or os.environ.get("VLM_URL", "http://localhost:1234/v1")).rstrip("/")
+    model = model or os.environ.get("VLM_MODEL", "")
+
+    def _read(png: bytes) -> str:
+        import httpx
+        b64 = base64.b64encode(png).decode()
+        r = httpx.post(url + "/chat/completions",
+                       json={"model": model, "max_tokens": 120, "temperature": 0,
+                             "messages": [{"role": "user", "content": [
+                                 {"type": "text", "text": "Transcribe the exact text in this "
+                                  "image. Output ONLY the characters, nothing else."},
+                                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}]}]},
+                       timeout=timeout)
+        r.raise_for_status()
+        return (r.json()["choices"][0]["message"]["content"] or "").strip()
+    return _read
+
+
+def tesseract_reader() -> Reader:
+    """Reader backed by Tesseract (needs `pytesseract` + the tesseract binary).
+    A local, model-free OCR option — no GPU, no service."""
+    def _read(png: bytes) -> str:
+        import pytesseract
+        from PIL import Image
+        return pytesseract.image_to_string(Image.open(io.BytesIO(png))).strip()
+    return _read
+
+
+# For a Coral / Edge-TPU or cloud-OCR backend, write a `reader(png)->str` that
+# runs your edgetpu-compiled recognizer (or cloud call) and returns the text,
+# then pass it as `reader=...`. Coral suits local, low-power OCR of clean,
+# fronto-parallel text feeding the deterministic counter; it is weaker than a
+# modern VLM on stylized/angled real-world text.
 
 
 def _render(word: str) -> bytes:
     from PIL import Image, ImageDraw, ImageFont
     font = None
-    for p in _FONTS:
+    for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
         if os.path.exists(p):
             font = ImageFont.truetype(p, 110)
             break
@@ -61,52 +99,47 @@ def _render(word: str) -> bytes:
     return buf.getvalue()
 
 
-def visual_spell(word: str, letter: str, timeout: float = 90.0) -> dict:
-    """Render `word` in a clean font, have a VLM read it letter-by-letter marking
-    each, count the marks. Returns {ok, read_back, read_matches, count, working}.
-    Fail-open: returns ok=False if Pillow/vision/parse is unavailable — fall back
-    to count_letter and/or the deterministic backstop."""
+def text_from_image(png: bytes, reader: Reader | None = None) -> str:
+    """Perceive the letters in an image via a pluggable reader (default: env VLM)."""
+    return (reader or vlm_reader())(png)
+
+
+def count_letter_in_image(png: bytes, letter: str, reader: Reader | None = None) -> int:
+    """Real-image case: OCR the image, then count deterministically. The count is
+    exact GIVEN the perception; the perception (reader) is the uncertain layer."""
+    return count_letter(text_from_image(png, reader), letter)
+
+
+def visual_spell(word: str, letter: str | None = None, reader: Reader | None = None) -> dict:
+    """Round-trip a KNOWN word: render it in a clean font YOU control, read it
+    back with the perception backend, and count deterministically. The read-back
+    vs the word is a self-consistency check on the reader. (For a word already
+    in text form you do not need this — use count_letter directly.)
+    Returns {ok, read_back, read_matches, count?, error?}. Fail-open."""
     try:
         png = _render(word)
     except Exception as e:
         return {"ok": False, "error": f"render failed ({e}); is Pillow installed?"}
-    b64 = base64.b64encode(png).decode()
-    prompt = ("Read the word in this image ONE LETTER AT A TIME, left to right. "
-              f"For each letter output a line: <n>. <letter> - <yes if it is '{letter}', else no>. "
-              "Cover EVERY letter. Then output: ANSWER: <how many were yes>")
     try:
-        import httpx
-        r = httpx.post(VLM_URL.rstrip("/") + "/chat/completions",
-                       json={"model": VLM_MODEL, "max_tokens": 500, "temperature": 0,
-                             "messages": [{"role": "user", "content": [
-                                 {"type": "text", "text": prompt},
-                                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}]}]},
-                       timeout=timeout)
-        r.raise_for_status()
-        text = r.json()["choices"][0]["message"]["content"] or ""
+        read = text_from_image(png, reader)
     except Exception as e:
-        return {"ok": False, "error": f"vision call failed ({e})"}
-    letters, yes = [], []
-    for line in text.splitlines():
-        m = _MARK_RE.search(line)
-        if m:
-            letters.append(m.group(1))
-            if m.group(2).lower() == "yes":
-                yes.append(m.group(1))
-    am = _ANSWER_RE.search(text)
-    count = len(yes) if letters else (int(am.group(1)) if am else None)
-    read = "".join(letters)
-    return {"ok": count is not None, "read_back": read,
-            "read_matches": read.lower() == word.lower(), "count": count,
-            "working": text.strip()}
+        return {"ok": False, "error": f"perception failed ({e})"}
+    out = {"ok": True, "read_back": read, "read_matches": read.lower() == word.lower()}
+    if letter:
+        out["count"] = count_letter(read, letter)   # deterministic count on the perceived text
+    return out
 
 
 if __name__ == "__main__":
+    # Deterministic layer — the guarantee, no model, no vision.
     assert count_letter("Accessories", "c") == 2
     assert count_letter("Mississippi", "s") == 4
     assert count_letter("parallel", "l") == 3
     assert char_at("kompressor", 4, from_end=True) == "s"
     assert char_at("python", 2) == "y"
     assert reverse_word("semaphore") == "erohpames"
-    print("char_ops deterministic self-check ok "
-          "(visual_spell needs a VLM endpoint + Pillow; see env vars)")
+    # Perception is pluggable — a fake reader proves counting runs on ITS output.
+    fake = lambda png: "Accessories"
+    assert visual_spell("Accessories", "c", reader=fake)["count"] == 2
+    assert count_letter_in_image(b"", "s", reader=lambda p: "Mississippi") == 4
+    print("char_ops self-check ok (deterministic counting; perception is a pluggable reader)")

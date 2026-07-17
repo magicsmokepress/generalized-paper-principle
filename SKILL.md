@@ -88,47 +88,63 @@ layer is the ergonomics — never the reverse.
 - **Backstop** — `verify_answer` (below) recomputes the arithmetic in a prompt
   and flags a mismatch, exactly as it does for character ops.
 
-## Requirements & fallbacks (what needs what)
+## Requirements: nothing but Python for the guarantee
 
-**No part of the guaranteed path needs a vision model.** Vision is required for
-*one optional method* only.
+**No model of any kind is required for the guaranteed path.** The whole
+correctness core is pure Python:
 
-| Component | Needs | Vision? |
+| Component | Needs | Model? |
 |---|---|---|
-| `calc` — all arithmetic | pure Python | no |
-| `count_letter` / `char_at` / `reverse_word` | pure Python | **no** — deterministic, guaranteed |
-| `verify_answer` — the backstop | pure Python | no |
-| decompose-then-ground — word problems | any text LLM | no |
-| `visual_spell` — model counts letters *with its eyes* | **vision model + Pillow** | **yes** |
+| `calc` — all arithmetic | pure Python | none |
+| `count_letter` / `char_at` / `reverse_word` | pure Python | none — deterministic |
+| `verify_answer` — the backstop | pure Python | none |
+| decompose-then-ground — word problems | any text LLM | text only (no vision) |
+| perception of image-sourced text | a pluggable **reader** | only if the word is an IMAGE |
 
-If you have **no vision model**:
-- For guaranteed character results, use the deterministic ops (`count_letter`,
-  `char_at`, `reverse_word`) — they need no model at all, and `verify_answer`
-  backstops them.
-- If you want the *model* to reason it out (for transparency, or a word that is
-  not clean text), fall back to **text enumeration** — have it output the word
-  one letter per line and mark each. Less reliable than vision or the
-  deterministic ops, but better than a one-shot guess.
+## Perception is pluggable; counting is deterministic
 
-`visual_spell` is for when you want the model to *perceive* the letters itself
-(its eyes see glyphs its tokens cannot) or the word comes from an image. When
-the word is already clean text, the deterministic count is exact — reach for
-that first.
+The character method separates two concerns, and only the first is uncertain:
 
-## Method for character tasks (visualize → mark → count)
+1. **Perception** — turning pixels into letters. Needed *only* when the word is
+   not already clean text (it came from a camera, screenshot, or photo). This is
+   a swappable backend: a `reader(png_bytes) -> str`. **Bring whatever you have** —
+   an OpenAI-compatible vision model, Tesseract (no GPU, no service), a
+   Coral / Edge-TPU OCR model, or a cloud OCR API.
+2. **Counting / indexing / reversing** — deterministic, exact, runs on whatever
+   text perception produced. This is the guarantee.
 
-When the word is KNOWN text, `word.count("c")` is exact — use it. But if you
-want the model to *do* it (or the word is only reliable via OCR you control):
-1. **Visualize** — render the word in a clean, controlled monospace font (YOU
-   pick the font, so there is no ugly-font risk; that risk only applies to text
-   observed via a camera).
-2. **Mark** — have the vision model read it ONE LETTER AT A TIME, marking each
-   (an isolated per-letter decision, not a gestalt glance). This step is
-   load-bearing: a holistic "how many c's" hallucinates; letter-by-letter marking
-   is reliable. Measured: a VLM said "Accessories" had three c's holistically,
-   and correctly said two when made to mark.
-3. **Count the marks.**
-See `reference/char_ops.py::visual_spell` for a reference implementation.
+If the word is already text, **skip perception entirely** — `count_letter` is
+exact and needs nothing. This is the common case.
+
+```python
+from reference.char_ops import count_letter, count_letter_in_image, vlm_reader, tesseract_reader
+
+count_letter("Accessories", "c")                 # 2  — word is text, no perception
+count_letter_in_image(png, "c", tesseract_reader())   # OCR the photo, then count exactly
+count_letter_in_image(png, "c", vlm_reader())         # or a vision model, same interface
+count_letter_in_image(png, "c", my_coral_reader)      # or Coral: any png->str callable
+```
+
+### Choosing a perception backend
+
+| Backend | Good for | Caveats |
+|---|---|---|
+| **none (deterministic)** | the word is already text | — (use this whenever you can) |
+| **Vision-enabled main model** | your agent's model is already multimodal | spends large-model inference on OCR |
+| **Dedicated small VLM** (env `VLM_URL`/`VLM_MODEL`) | text-only main model; best flexibility | needs a small always-on GPU service |
+| **Tesseract** | local, model-free, CPU-only OCR | weaker on stylized fonts |
+| **Coral / Edge TPU** | local, low-power OCR of clean, fronto-parallel text | needs an edgetpu-compiled recognizer; weaker on angled/stylized real-world text |
+| **Cloud OCR** | zero local infra | per-call cost, sends the image out |
+
+The key move that makes it universal: perception is the imperfect, swappable
+layer; **the count is always deterministic**, so accuracy is bounded only by the
+reader, and a word you already have as text needs no reader at all.
+
+Historical note on the "make the model do the counting itself" variant: a VLM
+asked "how many c's" *holistically* hallucinates (a real VLM said "Accessories"
+had three), but reading letter-by-letter and marking each is reliable. That
+trick is unnecessary here — transcribe (easy for a VLM) then count in code
+(exact) — but it is why perception and counting are split.
 
 ## Harness patterns (adapt to your framework)
 
