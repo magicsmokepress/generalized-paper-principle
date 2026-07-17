@@ -14,20 +14,27 @@ gives the model a signal it was wrong (log it, so drives/metrics can see it).
 def on_final_answer(prompt, answer, messages):
     findings = verify_answer(prompt, answer)          # reference/verify.py
     if findings and not turn_flag("verified"):
-        set_turn_flag("verified")                     # once per turn — no loops
+        set_turn_flag("verified")                     # one re-derivation — no loops
         log_failure("self_verify", findings)          # the perception signal
         messages.append(user_turn(correction_message(findings)))
-        return REGENERATE                             # model re-derives with tools
+        return REGENERATE                             # stage 1: name the op, model re-derives
+    if findings:                                      # stage 2: re-derivation ALSO came back wrong
+        log_failure("re_derive_failed", findings)
+        return COMMIT_WITH(substitute(answer, findings))  # splice in each finding's `expected`
     return COMMIT
 ```
 
 Notes:
-- **Once per turn.** Guard against loops. If the re-derivation is still wrong,
-  accept it — the miss is already logged.
+- **Two-stage, tier-aware.** Stage 1 names the operation, not the answer — right
+  for models that can act on it. If the handback *still* comes back wrong (small
+  models often do), stage 2 substitutes the deterministic result: committing a
+  known-right value beats committing a known-wrong one. `substitute` replaces the
+  claimed value with the finding's `expected` (or appends a correction line).
+- **Once per turn.** Guard against re-derivation loops; the miss is already logged.
 - **Run all checks, combine corrections.** If one turn has an arithmetic error
   AND a character error, catch both in one handback, not first-wins.
 - **Name the operation, not the answer** (correction_message does this) — the
-  model must re-derive, not parrot.
+  model must re-derive, not parrot. Substitution is the floor, not the policy.
 
 ## 2. Challenge re-runs the check (anti-doubling-down)
 
@@ -36,12 +43,15 @@ prevents the failure where "are you sure?" makes the model *more* confident in a
 wrong answer.
 
 ```python
-CHALLENGE = re.compile(r"\b(are you sure|really|is that right|double.?check|"
-                       r"you'?re wrong|certain)\b", re.I)
+# English-locked and deliberately loose — extend for your users' language and
+# idiom; a missed challenge just skips a re-check, it breaks nothing.
+CHALLENGE = re.compile(r"\b(are you sure|really|is that (?:right|correct)|"
+                       r"double.?check|you'?re wrong|that'?s (?:not right|wrong|incorrect)|"
+                       r"nope|no it isn'?t|hm+|certain)\b", re.I)
 
 def is_challenge(text):
     t = text.strip()
-    return t.strip("?") == "" and "?" in t or (len(t) <= 48 and CHALLENGE.search(t))
+    return (t.strip("?") == "" and "?" in t) or bool(len(t) <= 48 and CHALLENGE.search(t))
 
 def on_turn_start(user_input, messages):
     if is_challenge(user_input):
@@ -68,8 +78,14 @@ def maybe_ground(prompt):
     if not looks_multistep_math(prompt):       # >=2 numbers + a compute cue, or %, root, power
         return None
     plan = ask_model(PLAN_SYSTEM, prompt)       # "output CALC: <complete expression> per step"
+    exprs = extract("CALC:", plan)
+    if not exprs:                               # format failure: small models compute anyway
+        exprs = bare_expressions(plan)          # salvage: regex any inline arithmetic out of the prose
+    if not exprs:
+        plan = ask_model(PLAN_SYSTEM + " Output NOTHING except CALC: lines.", prompt)
+        exprs = extract("CALC:", plan)          # one strict retry, then give up gracefully
     grounded = []
-    for expr in extract("CALC:", plan):
+    for expr in exprs:
         val, err = calc(expr)                   # reference/calc.py
         if err is None:
             grounded.append(f"{expr} = {val}")
@@ -81,8 +97,26 @@ PLAN_SYSTEM = ("Break the problem into ordered arithmetic. For EVERY calculation
     "Account for ALL quantities including opposing ones. Do not compute — only write "
     "the expressions.")
 ```
-The planner may run on a stronger model (send only the bare problem, no private
-context). `calc` grounds it; the main model synthesizes.
+
+**Own the format instead of parsing around it.** On llama.cpp / KoboldCpp,
+constrain the planner's decoding with a grammar — the model *cannot* emit
+anything but CALC: lines:
+
+```
+root  ::= line+
+line  ::= "CALC: " expr "\n"
+expr  ::= [0-9] [0-9 ().+*/^!-]*
+```
+
+Hosted OpenAI-compatible endpoints get the same guarantee with structured
+outputs: `response_format={"type": "json_schema", ...}` around
+`{"steps": [{"expr": "..."}]}`. Either one deletes the format-failure path
+above — prefer it whenever the backend supports it.
+
+The planner may run on a **bigger local model** if you have one. A *remote*
+planner is an explicit opt-in, fenced by the fail-closed rule: send only the
+bare problem — never memory or context — and skip the call entirely on any
+private marker. `calc` grounds the plan; the main model synthesizes.
 
 ## Operating-principle text (drop into a system prompt)
 
