@@ -77,29 +77,35 @@ Measured rows for hosted mid-tier and non-reasoning small models welcome.
 ### Vision path (perception, not counting)
 
 The character method has a second front-end for words that arrive as images:
-render or photograph the word, have a vision model transcribe it, then count
+render or photograph the word, have a *reader* transcribe it, then count
 deterministically on the transcription (`bench/bench_vision.py`,
 `count_letter_in_image`). Since the count is exact given the transcription,
-this bench measures the *reader*:
+this bench measures the reader — and `bench_vision.py` runs any it finds: a
+local CPU OCR (Tesseract) and/or an OpenAI-compatible vision endpoint.
 
-| vision reader | transcription-exact | count-correct | steady-state latency |
+| perception reader | transcription-exact | count-correct | steady-state latency |
 | --- | --- | --- | --- |
-| `Cosmos-Reason2-8B.Q5_K_M` (local, clean rendered words) | 12/12 | 12/12 | ~75 ms/word |
+| Tesseract (local, CPU, model-free) | 11/12 | **12/12** | ~204 ms/word |
+| `Cosmos-Reason2-8B.Q5_K_M` (local VLM) | 12/12 | 12/12 | ~79 ms/word |
 
-Cosmos read every rendered word back verbatim and every deterministic count
-landed — including "bookkeeper", the case where a VLM asked to count e's
-*holistically* tends to hallucinate. The lesson the split encodes: transcribe
-(easy for a vision model), then count in code (exact).
+Both landed every count on clean renders — including "bookkeeper", the case a
+VLM asked to count e's *holistically* tends to hallucinate. The Tesseract row
+is the more instructive one: it misread "Mississippi" as "Mississipp1" (so
+11/12 exact), yet still counted the s's correctly, because the misread
+character wasn't the one being counted. That is the whole architecture in a
+single data point — **count-correct ≥ transcription-exact**, since the count
+runs deterministically on whatever the reader returned, and only a slip that
+touches the target letter can change the answer.
 
-On cost: the deterministic text path is ~1 µs/word; the vision path here is
-~75 ms/word steady-state (plus a ~0.6 s one-time model warmup) — roughly five
-orders of magnitude slower. So use the text path whenever the word is already
-text, and reach for vision only when the word genuinely arrives as an image;
-at ~75 ms it's still cheap enough for interactive use. **Caveat:** these are
-clean words in a font we control — perception's best case. Camera photos,
-stylized fonts, and angled text are harder and bound the accuracy; the count
-stays exact on whatever the reader returns, so the ceiling is the reader, not
-the counter.
+On cost: the text path is ~1 µs/word; Tesseract is ~200 ms/word on CPU with no
+model or GPU; the local VLM is ~79 ms/word (plus a ~0.6 s one-time warmup) but
+needs a vision model loaded. So use the text path whenever the word is already
+text, and reach for a perception reader only when the word genuinely arrives
+as an image — Tesseract when you have no GPU, a VLM when you have one and want
+robustness on messier inputs. **Caveat:** these are clean words in a font we
+control — perception's best case. Camera photos, stylized fonts, and angled
+text are harder and bound the accuracy; the count stays exact on whatever the
+reader returns, so the ceiling is the reader, not the counter.
 
 ## What the measurements suggest
 
