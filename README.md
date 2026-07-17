@@ -50,6 +50,7 @@ far (temperature 0, 12 items per column):
 | `x-ai/grok-4.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | **11/12 → 12/12** (1 caught, re-derived correct), 0 false flags |
 | `deepseek/deepseek-v4-pro` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `deepseek/deepseek-v4-flash` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `gemma-4-31B-it-qat-UD-Q4_K_XL` (local llama.cpp, reasoning on) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `Qwen3-1.7B-Q5_K_M` (local llama.cpp, thinking) | 11/12 → 11/12 (1 miss uncaught), 0 false flags | **4/12 → 12/12** (8/8 caught), 0 false flags |
 | `Qwen3-1.7B-Q5_K_M` (local llama.cpp, `/no_think`) | 12/12 → 12/12, 0 false flags | **2/12 → 12/12** (10/10 caught), 0 false flags |
 
