@@ -50,6 +50,8 @@ far (temperature 0, 12 items per column):
 | `x-ai/grok-4.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | **11/12 → 12/12** (1 caught, re-derived correct), 0 false flags |
 | `deepseek/deepseek-v4-pro` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `deepseek/deepseek-v4-flash` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `Qwen3-1.7B-Q5_K_M` (local llama.cpp, thinking) | 11/12 → 11/12 (1 miss uncaught), 0 false flags | **4/12 → 12/12** (8/8 caught), 0 false flags |
+| `Qwen3-1.7B-Q5_K_M` (local llama.cpp, `/no_think`) | 12/12 → 12/12, 0 false flags | **2/12 → 12/12** (10/10 caught), 0 false flags |
 
 Honest findings from the measured rows:
 
@@ -81,6 +83,11 @@ standing is stronger than the claim they replaced:
   bookkeeper's e's *today*, and the harness caught it and fixed it. You don't
   know which camp your model is in until you measure — the bench tells you in
   two minutes.
+- **The predicted big-lift row is real.** A 1.7B local model counts characters
+  at 2/12 bare; the harness catches all 10 misses and re-derivation lands
+  12/12 — the full lift the thesis predicts, measured. Its arithmetic
+  meanwhile is nearly clean, which is the two-decay-curves split showing up
+  inside a single small model.
 - **Constrained thinking is the real market.** The same local model that
   saturates the battery drops to 3/12 arithmetic when its reasoning budget is
   truncated. Every latency-capped, cost-capped, batch, or non-reasoning
