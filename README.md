@@ -107,6 +107,25 @@ control — perception's best case. Camera photos, stylized fonts, and angled
 text are harder and bound the accuracy; the count stays exact on whatever the
 reader returns, so the ceiling is the reader, not the counter.
 
+## Benchmark summary
+
+One roll-up of everything measured so far (all local/OpenRouter runs,
+temperature 0, 12 items per column). The detailed per-model and per-reader
+tables are above; this is the story they tell.
+
+| regime | example | what happens | harness effect |
+| --- | --- | --- | --- |
+| Frontier, unconstrained | Opus 4.8, GPT-5.5, DeepSeek v4-pro/flash | saturate — 24/24 both columns | nothing to fix; **0 false flags** |
+| Frontier, model-dependent | Grok 4.5 | miscounts "bookkeeper" e's | caught → re-derived → 12/12 |
+| Small local | Qwen3-1.7B | counts at 2/12 on its own | all 10 misses caught → 12/12 |
+| Truncated thinking | gemma-4-26B / 31B @ 400 tok | arithmetic collapses to 2–3/12; char counting untouched | recovers what's still checkable; a cut-off answer isn't |
+| Vision reader (image-sourced words) | Tesseract / Cosmos-8B | 11–12/12 transcription on clean renders | count-correct **12/12** either way; ~200 / ~79 ms/word |
+
+Two invariants held across every row: **char counting ≥ its own arithmetic
+whenever thinking is constrained** (the two decay curves), and **zero false
+flags** — the backstop never once removed a correct answer in 11 model runs
+plus 2 vision runs. Caveats below.
+
 ## What the measurements suggest
 
 The famous examples of language models failing to count letters are getting
@@ -249,6 +268,36 @@ principle and method, see [`SKILL.md`](SKILL.md).
 ```bash
 python -m pytest tests/         # or run any tests/test_*.py directly, no framework needed
 ```
+
+## Security model
+
+The strongest security property here is easy to miss: **the deterministic core
+is a handful of fixed, pure functions — not a code interpreter.** The common
+way to make a model "good at math" is to hand it a Python or shell tool and let
+it run whatever it writes; that is arbitrary code execution driven by model
+output. This repo is the opposite. `calc` parses to an AST and evaluates a
+hardcoded whitelist of arithmetic nodes — **no `eval`, no `exec`, no imports,
+no names, no attribute access, no subprocess, no network.** `count_letter`,
+`char_at`, and `reverse_word` are ordinary in-process string operations. You
+expose those four functions, not a REPL, so a hostile prompt has nothing to
+escape into.
+
+That containment lives entirely in the **text path**. The vision path is a
+*capability* fallback for words that only exist as pixels, and it widens the
+surface rather than narrowing it — reach for it when you must, not for safety:
+
+| path | subprocess / shell | network egress | parser surface |
+| --- | --- | --- | --- |
+| text (`calc`, `count_letter`, …) | none | none | none |
+| VLM reader (`vlm_reader`) | none | **yes** — posts the image to an endpoint | image render/decode |
+| Tesseract reader (`tesseract_reader`) | **yes** — spawns the `tesseract` binary | none | image render/decode + OCR |
+
+So: prefer the text path for both correctness and containment. When a word
+genuinely arrives as an image, choose the reader deliberately — a local
+Tesseract keeps data on the box but shells out to a binary; a VLM sends the
+image to an inference endpoint (honor the fail-closed-on-privacy rule below).
+`calc`'s AST whitelist is the load-bearing safety boundary; keep it a
+whitelist.
 
 ## Design rules worth keeping
 
