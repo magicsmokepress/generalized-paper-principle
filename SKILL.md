@@ -40,14 +40,14 @@ on two whole classes of task, and cannot feel that it erred:
   challenged.
 
 This bites hardest wherever there is **no guaranteed code interpreter**: local
-models, hosted small/non-frontier endpoints, and — for character work — frontier
-models too. The two classes decay differently with scale: **arithmetic degrades
-as models grow; character work doesn't.** A frontier model mostly gets
-`17×23−4³` right, yet still miscounts the r's in strawberry — tokenization does
-not care about parameter count, and a model that *has* a tool often doesn't
-reach for it on a question that looks trivial. One thesis, two decay curves.
-The fix is the same for both: don't compute it in the model's head,
-externalize it (see the principle below).
+models, hosted small/non-frontier endpoints, and models running with
+constrained thinking budgets. The two classes decay differently with scale:
+**arithmetic degrades as models grow; character work decays slower** —
+tokenization does not care about parameter count, though the famous cases
+(strawberry's r's) are now trained around at the frontier (measured: see the
+README matrix; current frontier models saturate the easy battery). One thesis,
+two decay curves. The fix is the same for both: don't compute it in the
+model's head, externalize it (see the principle below).
 
 ## The principle
 

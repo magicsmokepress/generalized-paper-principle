@@ -18,17 +18,17 @@ patterns, framework-agnostic.
 
 ## One thesis, two decay curves
 
-**Arithmetic degrades with scale; character work doesn't.** A frontier model
-mostly gets `17×23−4³` right; it still miscounts the r's in strawberry, because
-tokenization doesn't care about parameter count — and a frontier model that
-*has* a tool often doesn't reach for it on a question that looks trivial. So
-the audience is a spectrum:
+**Arithmetic degrades with scale; character work decays slower.** Tokenization
+doesn't care about parameter count, so character work was long the failure that
+survived scale — though the famous cases (strawberry's r's) are now trained
+around at the frontier, and our own measurements below show it. Expected lifts,
+before measuring:
 
 | | arithmetic | char counting |
 |---|---|---|
 | local small (7B–30B) | big lift | big lift |
 | hosted mid-tier | moderate lift | big lift |
-| frontier | ~none | still a lift |
+| frontier | ~none | unproven — measure it |
 
 Measure your own cell — that table is the repo's claim, and `bench/bench.py`
 produces your row against any OpenAI-compatible endpoint:
@@ -45,15 +45,25 @@ far (temperature 0, 12 items per column):
 | --- | --- | --- |
 | `gemma-4-26B-A4B-it-Q5_K_M` (local KoboldCpp, reasoning on, unbounded thinking) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `gemma-4-26B-A4B-it-Q5_K_M` (same model, thinking truncated at 400 tokens) | 3/12 bare | 11/12 bare |
+| `anthropic/claude-opus-4.8` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `openai/gpt-5.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 
-Two honest findings from the first measured rows: a local 26B *reasoning*
-model at temperature 0 saturates this battery, so the lift concentrates on
-non-reasoning small models and on constrained thinking budgets — the same
-model loses most of its arithmetic when its reasoning is cut short, which is
-exactly the regime batch/latency-limited deployments run in. And on a
-saturating model the harness's value is the backstop guarantee: 0 false flags
-means it never costs a correct answer. Measured rows for hosted mid-tier and
-frontier endpoints welcome.
+Honest findings from the measured rows:
+
+- **The frontier char-counting cell came back empty.** Opus 4.8 and GPT-5.5
+  saturate this battery — the famous character failures are trained around at
+  the frontier, at least for short common words at temperature 0. If a frontier
+  lift exists it lives in harder character work (long rare strings, adversarial
+  spacing, non-Latin scripts); this battery doesn't reach it, and we won't
+  claim what we didn't measure.
+- **The lift concentrates down-spectrum and under constrained thinking.** A
+  local 26B reasoning model saturates the battery with unbounded thinking, then
+  loses most of its arithmetic (12/12 → 3/12) when its reasoning is truncated —
+  exactly the regime batch/latency-limited and non-reasoning deployments run in.
+- **On a saturating model the harness costs nothing:** 0 false flags across
+  every row means the backstop never takes away a correct answer.
+
+Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
 ## Two layers
 
