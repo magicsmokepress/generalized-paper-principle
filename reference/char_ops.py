@@ -36,6 +36,11 @@ def _nfc(s: str) -> str:
 
 
 def count_letter(word: str, letter: str) -> int:
+    # This text path is the guarantee. Alternative "render + look + count"
+    # methods exist for image-sourced words: a vision model (`vlm_reader`) or a
+    # Coral / Edge-TPU OCR reader feeding `count_letter_in_image` — same
+    # deterministic count, just a different perception front-end. See the
+    # PERCEPTION section below.
     return _nfc(word).lower().count(_nfc(letter).lower())
 
 
