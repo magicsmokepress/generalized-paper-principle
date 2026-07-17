@@ -48,6 +48,8 @@ far (temperature 0, 12 items per column):
 | `anthropic/claude-opus-4.8` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `openai/gpt-5.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `x-ai/grok-4.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | **11/12 → 12/12** (1 caught, re-derived correct), 0 false flags |
+| `deepseek/deepseek-v4-pro` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `deepseek/deepseek-v4-flash` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 
 Honest findings from the measured rows:
 
