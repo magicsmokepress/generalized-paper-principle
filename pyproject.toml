@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "generalized-paper-principle"
+version = "0.2.0"
+description = "Deterministic math and character tools for LLMs without a guaranteed code interpreter"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/magicsmokepress/generalized-paper-principle"
+
+[tool.setuptools]
+packages = ["paper_principle"]
+
+[tool.setuptools.package-dir]
+paper_principle = "reference"
