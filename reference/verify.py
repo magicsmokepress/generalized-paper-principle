@@ -16,21 +16,26 @@ from __future__ import annotations
 
 import re
 
-from calc import calc
+try:
+    from .calc import calc          # installed as a package
+except ImportError:
+    from calc import calc           # run from the reference/ directory
 
-_NUM_IN_ANSWER = re.compile(r"-?\d+(?:\.\d+)?")
+# Matches plain and comma-grouped numbers ("1,234.56", "$1,234"); commas are
+# stripped before comparison.
+_NUM_IN_ANSWER = re.compile(r"-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?")
 
 # ── arithmetic ─────────────────────────────────────────────────────────────
 _SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹"
 _OPS = rf"+\-*/×÷−–—^!{_SUP}"
 _ECHARS = rf"[0-9.,()\s{_OPS}]"
 _TERM = rf"[0-9!{_SUP}]"
-_EXPR_RE = re.compile(rf"\d{_ECHARS}*[{_OPS}]{_ECHARS}*{_TERM}|\d\s*!")
+_EXPR_RE = re.compile(rf"\(*\s*\d{_ECHARS}*[{_OPS}]{_ECHARS}*{_TERM}|\d\s*!")
 _BINOP_RE = re.compile(rf"[{_OPS}]")
 
 
 def _answer_has(value, answer):
-    for n in (float(x) for x in _NUM_IN_ANSWER.findall(answer or "")):
+    for n in (float(x.replace(",", "")) for x in _NUM_IN_ANSWER.findall(answer or "")):
         if abs(n - value) < 1e-6 or round(n, 2) == round(float(value), 2):
             return True
     return False
@@ -66,7 +71,9 @@ _AFTER_VERB = re.compile(r'\b(?:reverse|reversed|spell)\s+(?:the\s+(?:word|strin
 _STOP = {"the", "word", "string", "letter", "this", "that", "reverse", "which"}
 _SINGLE = re.compile(r"(?<![A-Za-z])([A-Za-z])(?![A-Za-z])")
 _NUMWORDS = {"zero": 0, "no": 0, "none": 0, "one": 1, "two": 2, "three": 3, "four": 4,
-             "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+             "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+             "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+             "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20}
 
 
 def _word_target(prompt):
@@ -148,4 +155,8 @@ if __name__ == "__main__":
     assert not verify_answer("4th char from the end of \"kompressor\"?", "s")
     assert not verify_answer("What is the capital of France?", "Paris")    # no target
     assert not verify_answer("I picked strawberry; how many r's in it?", "strawberry has 3 r's")  # pronoun -> no false flag
+    assert not verify_answer("What is 1200 × 12?", "$14,400")     # currency + comma grouping
+    assert verify_answer("What is 1200 × 12?", "$14,600")
+    assert verify_answer("What is (847 − 269) × 34?", "19000")    # leading-paren expression
+    assert not verify_answer("What is (847 − 269) × 34?", "19652")
     print("verify self-check ok (flags wrongs, no false positives, no pronoun false-flag)")

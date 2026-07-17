@@ -14,6 +14,16 @@ def test_arithmetic_restated_correct_not_flagged():
                              "17×23 is 391, minus 64 gives 327.")
 
 
+def test_currency_and_comma_grouping():
+    assert not verify_answer("What is 1200 × 12?", "$14,400")   # right, formatted
+    assert verify_answer("What is 1200 × 12?", "$14,600")       # wrong
+
+
+def test_leading_paren_expression():
+    assert verify_answer("What is (847 − 269) × 34?", "19000")  # wrong
+    assert not verify_answer("What is (847 − 269) × 34?", "19652")
+
+
 def test_count_quoted():
     assert verify_answer('How many "c" in "Accessories"?', "one")    # wrong (2)
     assert not verify_answer('How many "c" in "Accessories"?', "two")
