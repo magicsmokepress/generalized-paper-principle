@@ -74,38 +74,37 @@ Honest findings from the measured rows:
 
 Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
-## The verdict
+## What the measurements suggest
 
-**The "LLMs can't count" pitch is dead at the frontier; the paper principle
-isn't.** Opus 4.8, GPT-5.5, and both DeepSeek v4 models saturate this battery —
-the famous character failures are trained around. What the measurements leave
-standing is stronger than the claim they replaced:
+On this (small, easy) battery, the classic "LLMs can't count" examples no
+longer trouble most current frontier models — Opus 4.8, GPT-5.5, and both
+DeepSeek v4 models answered everything correctly. A few observations worth
+carrying forward, with the caveat that 12 items per column is a smoke test,
+not a study:
 
-- **The frontier cell is model-dependent, not closed.** Grok 4.5 miscounted
-  bookkeeper's e's *today*, and the harness caught it and fixed it. You don't
-  know which camp your model is in until you measure — the bench tells you in
-  two minutes.
-- **The predicted big-lift row is real.** A 1.7B local model counts characters
-  at 2/12 bare; the harness catches all 10 misses and re-derivation lands
-  12/12 — the full lift the thesis predicts, measured. Its arithmetic
-  meanwhile is nearly clean, which is the two-decay-curves split showing up
-  inside a single small model.
-- **Constrained thinking is the real market.** Local models that saturate the
-  battery collapse to 2–3/12 arithmetic when their reasoning budget is
-  truncated — while their char counting survives untouched (12/12), the
-  two-decay-curves split reproduced *by budget* inside one model. Truncation
-  also caps what the harness can recover (a cut-off answer contains nothing
-  checkable), so the backstop is a complement to an adequate budget, not a
-  substitute. Every latency-capped, cost-capped, batch, or non-reasoning
-  deployment lives in that regime permanently — it's one config setting away
-  for everyone.
-- **The backstop is free.** Zero false flags across every measured row: the
-  harness never takes away a correct answer. Worst case it does nothing; best
-  case it silently fixes a Grok-style miss.
+- **Frontier behavior varies by model.** Grok 4.5 still miscounted
+  bookkeeper's e's, and the verify-then-re-derive loop caught and corrected
+  it. Rather than assume which camp a given model falls in, it's cheap to
+  check — the bench takes a couple of minutes against any OpenAI-compatible
+  endpoint.
+- **Small local models still show the predicted lift.** A 1.7B model counted
+  characters at 2/12 bare; the backstop flagged all 10 misses and
+  re-derivation brought it to 12/12. Its arithmetic was nearly clean, so the
+  arithmetic-vs-characters split shows up even within one small model.
+- **Thinking budget matters as much as model size.** Local models that handle
+  the battery comfortably dropped to 2–3/12 on arithmetic when their
+  reasoning was truncated, while their character counting was unaffected.
+  Truncation also limits what the harness can recover — a cut-off answer
+  contains nothing checkable — so the backstop works best alongside an
+  adequate token budget, not instead of one. Latency-capped, cost-capped, and
+  batch deployments tend to live in that truncated regime.
+- **The backstop appears to cost nothing.** Across every measured row it
+  produced zero false flags — it never overrode a correct answer. Worst case
+  it does nothing; best case it quietly fixes a miss.
 
-So the positioning, backed by the receipts above: for any model without a
-guaranteed interpreter or an unconstrained thinking budget, this is a
-zero-cost backstop — run `bench/bench.py` to find out if that's you.
+If your model runs without a guaranteed interpreter, or with a constrained
+thinking budget, the harness may help — `bench/bench.py` will tell you
+whether it does for your setup.
 
 ## Two layers
 
