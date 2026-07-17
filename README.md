@@ -74,6 +74,27 @@ Honest findings from the measured rows:
 
 Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
+### Vision path (perception, not counting)
+
+The character method has a second front-end for words that arrive as images:
+render or photograph the word, have a vision model transcribe it, then count
+deterministically on the transcription (`bench/bench_vision.py`,
+`count_letter_in_image`). Since the count is exact given the transcription,
+this bench measures the *reader*:
+
+| vision reader | transcription-exact | count-correct |
+| --- | --- | --- |
+| `Cosmos-Reason2-8B.Q5_K_M` (local, clean rendered words) | 12/12 | 12/12 |
+
+Cosmos read every rendered word back verbatim and every deterministic count
+landed — including "bookkeeper", the case where a VLM asked to count e's
+*holistically* tends to hallucinate. The lesson the split encodes: transcribe
+(easy for a vision model), then count in code (exact). **Caveat:** these are
+clean words in a font we control — perception's best case. Camera photos,
+stylized fonts, and angled text are harder and bound the accuracy; the count
+stays exact on whatever the reader returns, so the ceiling is the reader, not
+the counter.
+
 ## What the measurements suggest
 
 The famous examples of language models failing to count letters are getting
