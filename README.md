@@ -121,6 +121,16 @@ check, decompose-then-ground for word problems) and a drop-in operating-principl
 paragraph, see [`PATTERNS.md`](PATTERNS.md). For the full principle, method, and
 measured effectiveness, see [`SKILL.md`](SKILL.md).
 
+## Tests
+
+The deterministic core is covered by `tests/` — runnable with pytest **or**
+standalone (no framework required):
+
+```bash
+python -m pytest tests/         # if you have pytest
+python tests/test_calc.py       # or run any file directly
+```
+
 ## Design rules worth keeping
 
 - **Validators, not crutches.** The backstop names the *operation*, not the
