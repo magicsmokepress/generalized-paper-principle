@@ -88,6 +88,33 @@ layer is the ergonomics — never the reverse.
 - **Backstop** — `verify_answer` (below) recomputes the arithmetic in a prompt
   and flags a mismatch, exactly as it does for character ops.
 
+## Requirements & fallbacks (what needs what)
+
+**No part of the guaranteed path needs a vision model.** Vision is required for
+*one optional method* only.
+
+| Component | Needs | Vision? |
+|---|---|---|
+| `calc` — all arithmetic | pure Python | no |
+| `count_letter` / `char_at` / `reverse_word` | pure Python | **no** — deterministic, guaranteed |
+| `verify_answer` — the backstop | pure Python | no |
+| decompose-then-ground — word problems | any text LLM | no |
+| `visual_spell` — model counts letters *with its eyes* | **vision model + Pillow** | **yes** |
+
+If you have **no vision model**:
+- For guaranteed character results, use the deterministic ops (`count_letter`,
+  `char_at`, `reverse_word`) — they need no model at all, and `verify_answer`
+  backstops them.
+- If you want the *model* to reason it out (for transparency, or a word that is
+  not clean text), fall back to **text enumeration** — have it output the word
+  one letter per line and mark each. Less reliable than vision or the
+  deterministic ops, but better than a one-shot guess.
+
+`visual_spell` is for when you want the model to *perceive* the letters itself
+(its eyes see glyphs its tokens cannot) or the word comes from an image. When
+the word is already clean text, the deterministic count is exact — reach for
+that first.
+
 ## Method for character tasks (visualize → mark → count)
 
 When the word is KNOWN text, `word.count("c")` is exact — use it. But if you

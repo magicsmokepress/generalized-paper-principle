@@ -34,6 +34,16 @@ restating).
 - **Harness patterns** (`PATTERNS.md`) — framework-agnostic pseudocode you adapt
   to your agent loop, plus a drop-in operating-principle paragraph.
 
+## Requirements
+
+**No vision model is needed for the guaranteed path.** The deterministic tools
+(`calc`, `count_letter`, `char_at`, `reverse_word`, `verify_answer`) are pure
+Python — no model at all. Word-problem decomposition needs any text LLM. Only
+`visual_spell` — the method where the model counts letters *with its eyes* —
+needs a vision model + Pillow, and it is optional (for guaranteed character
+results, use the deterministic ops; without vision you can also fall back to
+text enumeration). See [`SKILL.md`](SKILL.md) § *Requirements & fallbacks*.
+
 ## Quick start
 
 ```bash
