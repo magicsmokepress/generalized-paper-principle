@@ -1,5 +1,5 @@
 ---
-name: token-robust-cognition
+name: generalized-paper-principle
 description: >
   Make an LLM agent reliable at the computations tokenization breaks — first and
   foremost MATH (multi-step arithmetic, percentages, powers, roots, factorials,
@@ -17,7 +17,11 @@ description: >
   spelling, or any precise computation an LLM must not guess.
 ---
 
-# Token-Robust Cognition for LLM Agents
+# The Generalized Paper Principle
+
+*Most people pull out a piece of paper for anything beyond basic math. An LLM
+should too — for math and for characters. This skill is that principle,
+generalized and made mechanical.*
 
 ## The problem this solves
 

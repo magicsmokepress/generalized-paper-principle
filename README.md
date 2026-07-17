@@ -1,4 +1,8 @@
-# token-robust-cognition
+# generalized-paper-principle
+
+> *Most people pull out a piece of paper for anything beyond basic math. An LLM
+> should too.* This repo generalizes that principle — for math **and**
+> characters — and makes it mechanical.
 
 Make an LLM agent reliable at the computations tokenization breaks — **math**
 first (multi-step arithmetic, percentages, powers, roots, factorials, word
