@@ -70,6 +70,30 @@ Honest findings from the measured rows:
 
 Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
+## The verdict
+
+**The "LLMs can't count" pitch is dead at the frontier; the paper principle
+isn't.** Opus 4.8, GPT-5.5, and both DeepSeek v4 models saturate this battery —
+the famous character failures are trained around. What the measurements leave
+standing is stronger than the claim they replaced:
+
+- **The frontier cell is model-dependent, not closed.** Grok 4.5 miscounted
+  bookkeeper's e's *today*, and the harness caught it and fixed it. You don't
+  know which camp your model is in until you measure — the bench tells you in
+  two minutes.
+- **Constrained thinking is the real market.** The same local model that
+  saturates the battery drops to 3/12 arithmetic when its reasoning budget is
+  truncated. Every latency-capped, cost-capped, batch, or non-reasoning
+  deployment lives in that regime permanently — it's one config setting away
+  for everyone.
+- **The backstop is free.** Zero false flags across every measured row: the
+  harness never takes away a correct answer. Worst case it does nothing; best
+  case it silently fixes a Grok-style miss.
+
+So the positioning, backed by the receipts above: for any model without a
+guaranteed interpreter or an unconstrained thinking budget, this is a
+zero-cost backstop — run `bench/bench.py` to find out if that's you.
+
 ## Two layers
 
 - **Deterministic tools** (`reference/`) — pure functions, no model in the loop
