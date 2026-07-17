@@ -71,9 +71,55 @@ char_at("kompressor", 4, from_end=True)  # "s"
 verify_answer("How many c in \"Accessories\"?", "one")  # [{'op': 'the number of "c" in "Accessories"', 'expected': 2}]
 ```
 
-See [`SKILL.md`](SKILL.md) for the full principle, method, design rules, and
-measured effectiveness, and [`PATTERNS.md`](PATTERNS.md) for wiring it into an
-agent.
+## Usage example
+
+**Simplest — when you already have the word/expression as text, skip the model
+entirely.** This is exact and needs nothing:
+
+```python
+from reference.calc import calc
+from reference.char_ops import count_letter, char_at, reverse_word
+
+calc("17 × 23 − 4³")                        # (327, None)   -- not 329
+count_letter("Accessories", "c")            # 2             -- not "one"
+char_at("kompressor", 4, from_end=True)     # "s"
+reverse_word("semaphore")                   # "erohpames"
+```
+
+**Integration — guard any agent turn with the backstop.** Let your model draft
+an answer, deterministically check it, and hand it back to re-derive if it's
+wrong. Works with any provider — `llm(prompt) -> str` is your model call:
+
+```python
+from reference.verify import verify_answer, correction_message
+
+def answer_reliably(user_prompt, llm):
+    draft = llm(user_prompt)                       # your model's first pass
+    findings = verify_answer(user_prompt, draft)   # deterministic re-computation
+    if not findings:
+        return draft                               # nothing checkable, or correct
+    # a check caught an error -> hand it back to re-derive (names the op, not the answer)
+    return llm(f"{user_prompt}\n\n{correction_message(findings)}\n"
+               "Compute it exactly (calculator / spell it out), then give the corrected answer.")
+
+# If the model first says "There is one 'c' in Accessories", verify_answer flags it
+# and the retry re-derives to "two". Same for 17×23−4³ -> 329 caught -> 327.
+answer_reliably('How many "c" are in "Accessories"?', my_llm)
+```
+
+**Reading a word off an image** (camera/photo) — plug in any perception backend;
+the count is still deterministic:
+
+```python
+from reference.char_ops import count_letter_in_image, tesseract_reader  # or vlm_reader / a Coral reader
+
+count_letter_in_image(photo_png, "c", tesseract_reader())   # OCR the picture, then count exactly
+```
+
+For the harness patterns (verify-then-re-derive, "are you sure?" re-runs the
+check, decompose-then-ground for word problems) and a drop-in operating-principle
+paragraph, see [`PATTERNS.md`](PATTERNS.md). For the full principle, method, and
+measured effectiveness, see [`SKILL.md`](SKILL.md).
 
 ## Design rules worth keeping
 
