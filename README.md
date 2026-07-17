@@ -43,7 +43,7 @@ far (temperature 0, 12 items per column):
 
 | model | arithmetic (bare → harnessed) | char counting (bare → harnessed) |
 | --- | --- | --- |
-| `gemma-4-26B-A4B-it-Q5_K_M` (local KoboldCpp, reasoning on, unbounded thinking) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
+| `gemma-4-26B-A4B-it-Q5_K_M` (local llama.cpp, reasoning on, unbounded thinking) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `gemma-4-26B-A4B-it-Q5_K_M` (same model, thinking truncated at 400 tokens) | 3/12 bare | 11/12 bare |
 | `anthropic/claude-opus-4.8` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
 | `openai/gpt-5.5` (OpenRouter) | 12/12 → 12/12, 0 false flags | 12/12 → 12/12, 0 false flags |
