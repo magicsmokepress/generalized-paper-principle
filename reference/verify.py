@@ -99,6 +99,17 @@ def _claimed_number(answer):
     return None
 
 
+def _claimed_numbers(answer):
+    """ALL numbers a compound answer might be claiming ("2+2 is 4, and 3 a's").
+    The count check flags only when NONE of them is the correct count — a miss
+    is acceptable; a false accusation is not."""
+    out = {int(m) for m in re.findall(r"-?\d+", answer or "")}
+    for w, n in _NUMWORDS.items():
+        if re.search(rf"\b{w}\b", answer or "", re.I):
+            out.add(n)
+    return out
+
+
 def _string_findings(prompt, answer):
     s = _word_target(prompt)
     out = []
@@ -122,10 +133,10 @@ def _string_findings(prompt, answer):
         if not letter:
             singles = [c for c in _SINGLE.findall(prompt or "") if c.lower() != "i"]
             letter = singles[0] if len(singles) == 1 else None
-        claimed = _claimed_number(answer)
-        if word and letter and claimed is not None:
+        claimed = _claimed_numbers(answer)
+        if word and letter and claimed:
             correct = word.lower().count(letter.lower())
-            if claimed != correct:
+            if correct not in claimed:
                 out.append({"op": f'the number of "{letter}" in "{word}"', "expected": correct})
     return out
 
@@ -159,4 +170,9 @@ if __name__ == "__main__":
     assert verify_answer("What is 1200 × 12?", "$14,600")
     assert verify_answer("What is (847 − 269) × 34?", "19000")    # leading-paren expression
     assert not verify_answer("What is (847 − 269) × 34?", "19652")
+    # Compound answer: correct count next to unrelated numbers must NOT flag.
+    assert not verify_answer("How many 'a' are in 'banana'? And what is 2+2?",
+                             "2+2 is 4, and there are 3 a's in banana.")
+    assert verify_answer("How many 'a' are in 'banana'? And what is 2+2?",
+                         "2+2 is 4, and there are 2 a's in banana.")  # both claims wrong -> flag
     print("verify self-check ok (flags wrongs, no false positives, no pronoun false-flag)")

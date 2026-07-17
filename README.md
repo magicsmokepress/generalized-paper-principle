@@ -70,7 +70,7 @@ Honest findings from the measured rows:
   loses most of its arithmetic (12/12 → 3/12) when its reasoning is truncated —
   exactly the regime batch/latency-limited and non-reasoning deployments run in.
 - **On a saturating model the harness costs nothing:** 0 false flags across
-  every row means the backstop never takes away a correct answer.
+  every row means the backstop took away no correct answers in our runs.
 
 Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
@@ -110,7 +110,9 @@ real-world deployments — anything optimized for speed, cost, or batch
 processing — run with exactly that kind of constrained thinking.
 
 Finally, the safety net seems to have no downside. Across every model we
-measured, it never once flagged an answer that was actually correct. At worst
+measured, it did not once flag an answer that was actually correct. That is
+an observed record, not a guarantee — we found (and fixed) one way to trick
+it by hand that the batteries never exercised. At worst
 it does nothing; at best it quietly fixes a mistake.
 
 If your model runs without guaranteed access to a code interpreter, or with a
@@ -128,7 +130,11 @@ keep in your setup.
     `visual_spell` with a **pluggable perception reader** (VLM, Tesseract,
     Coral, cloud — any `png->str`); counting stays deterministic.
   - `verify.py` — `verify_answer(prompt, answer)` recomputes and returns findings
-    to hand back for re-derivation. Conservative: never false-flags a correct answer.
+    to hand back for re-derivation. Conservative by design: it stays silent
+    when extraction is ambiguous, and produced zero false flags across every
+    measured row below — but that is an observed rate, not a proof. (One
+    false-flag path we found by trying to break it — a compound answer whose
+    first number belongs to a different question — is fixed and now tested.)
 - **Harness patterns** (`PATTERNS.md`) — framework-agnostic pseudocode you adapt
   to your agent loop, plus a drop-in operating-principle paragraph.
 
