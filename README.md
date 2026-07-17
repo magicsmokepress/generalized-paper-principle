@@ -76,35 +76,47 @@ Measured rows for hosted mid-tier and non-reasoning small models welcome.
 
 ## What the measurements suggest
 
-On this (small, easy) battery, the classic "LLMs can't count" examples no
-longer trouble most current frontier models — Opus 4.8, GPT-5.5, and both
-DeepSeek v4 models answered everything correctly. A few observations worth
-carrying forward, with the caveat that 12 items per column is a smoke test,
-not a study:
+The famous examples of language models failing to count letters are getting
+harder to reproduce. On our test battery, the biggest models — Opus 4.8,
+GPT-5.5, and both DeepSeek v4 models — answered every question correctly.
+That said, twelve questions per category is a quick check, not a formal
+study, so take what follows as observations rather than conclusions.
 
-- **Frontier behavior varies by model.** Grok 4.5 still miscounted
-  bookkeeper's e's, and the verify-then-re-derive loop caught and corrected
-  it. Rather than assume which camp a given model falls in, it's cheap to
-  check — the bench takes a couple of minutes against any OpenAI-compatible
-  endpoint.
-- **Small local models still show the predicted lift.** A 1.7B model counted
-  characters at 2/12 bare; the backstop flagged all 10 misses and
-  re-derivation brought it to 12/12. Its arithmetic was nearly clean, so the
-  arithmetic-vs-characters split shows up even within one small model.
-- **Thinking budget matters as much as model size.** Local models that handle
-  the battery comfortably dropped to 2–3/12 on arithmetic when their
-  reasoning was truncated, while their character counting was unaffected.
-  Truncation also limits what the harness can recover — a cut-off answer
-  contains nothing checkable — so the backstop works best alongside an
-  adequate token budget, not instead of one. Latency-capped, cost-capped, and
-  batch deployments tend to live in that truncated regime.
-- **The backstop appears to cost nothing.** Across every measured row it
-  produced zero false flags — it never overrode a correct answer. Worst case
-  it does nothing; best case it quietly fixes a miss.
+A few things stood out.
 
-If your model runs without a guaranteed interpreter, or with a constrained
-thinking budget, the harness may help — `bench/bench.py` will tell you
-whether it does for your setup.
+First, you can't assume every large model has outgrown the problem. Grok 4.5,
+as capable as its peers on arithmetic, still counted the e's in "bookkeeper"
+wrong — and the harness caught the mistake and walked the model to the right
+answer. Since there's no way to know in advance which side of that line a
+given model falls on, the practical move is simply to test it: the benchmark
+runs in a couple of minutes against any OpenAI-compatible endpoint.
+
+Second, small local models still fail exactly the way this project predicts.
+A 1.7-billion-parameter model got only two of twelve counting questions right
+on its own. With the harness checking its work, it finished with a perfect
+score — every one of its ten mistakes was caught and corrected. Interestingly,
+the same model's arithmetic was nearly flawless, which shows the split between
+math ability and letter-counting ability isn't just a difference between big
+and small models; it can live inside a single model.
+
+Third, how much a model is allowed to "think" matters about as much as how big
+it is. Models that handled the battery comfortably fell to two or three
+correct arithmetic answers out of twelve once their reasoning was cut short —
+while their letter counting didn't suffer at all. Cutting off the reasoning
+also limits what the harness can rescue, because an answer that never finished
+contains nothing to check. So the harness works best alongside a reasonable
+token budget, not as a replacement for one. This matters because many
+real-world deployments — anything optimized for speed, cost, or batch
+processing — run with exactly that kind of constrained thinking.
+
+Finally, the safety net seems to have no downside. Across every model we
+measured, it never once flagged an answer that was actually correct. At worst
+it does nothing; at best it quietly fixes a mistake.
+
+If your model runs without guaranteed access to a code interpreter, or with a
+tight thinking budget, this harness may be worth having. Running
+`bench/bench.py` against your own endpoint will tell you whether it earns its
+keep in your setup.
 
 ## Two layers
 
