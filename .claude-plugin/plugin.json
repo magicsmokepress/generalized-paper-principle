@@ -1,0 +1,10 @@
+{
+  "name": "generalized-paper-principle",
+  "version": "1.0.0",
+  "description": "Make an LLM agent reliable at exact math and character/counting tasks that tokenization breaks — deterministic calculator + string ops, decompose-then-compute, verify-then-re-derive.",
+  "author": {
+    "name": "magicsmokepress",
+    "url": "https://github.com/magicsmokepress"
+  },
+  "homepage": "https://github.com/magicsmokepress/generalized-paper-principle"
+}

@@ -194,7 +194,7 @@ keep in your setup.
 
 **No model of any kind is needed for the guaranteed path** — it is pure Python.
 Perception (a `reader(png_bytes) -> str`) is needed only when the word comes
-from an *image*; see [`SKILL.md`](SKILL.md) § *Perception is pluggable;
+from an *image*; see [`SKILL.md`](skills/generalized-paper-principle/SKILL.md) § *Perception is pluggable;
 counting is deterministic*.
 
 ## Quick start
@@ -261,7 +261,7 @@ count_letter_in_image(photo_png, "c", tesseract_reader())
 For the harness patterns (verify-then-re-derive with the two-stage fallback,
 "are you sure?" re-runs the check, decompose-then-ground for word problems with
 grammar-constrained planning), see [`PATTERNS.md`](PATTERNS.md). For the full
-principle and method, see [`SKILL.md`](SKILL.md).
+principle and method, see [`SKILL.md`](skills/generalized-paper-principle/SKILL.md).
 
 ## Tests
 
