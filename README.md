@@ -310,6 +310,31 @@ whitelist.
 - **Fail closed on privacy** for any external second-opinion call — send only
   the bare question and answer.
 
+## Prior Art
+
+The method here — route exact computation out of the language model into
+deterministic tools, decompose-then-compute, and verify-then-re-derive —
+packages a well-established line of research. The *name* is novel; the
+*approach* is not.
+
+**Tool-augmented / offloaded computation**
+
+- **Toolformer** — <https://arxiv.org/abs/2302.04761> — LMs teach themselves when/how to call external tools, including a calculator. *Foundational.*
+- **PAL: Program-Aided Language Models** — <https://arxiv.org/abs/2211.10435> — the LM writes reasoning as code and a Python interpreter does the exact computation. *Near-identical philosophy.*
+- **Program of Thoughts (PoT)** — <https://arxiv.org/abs/2211.12588> — disentangles reasoning (LM) from computation (interpreter). *Same decompose-then-compute split.*
+- **ReAct** — <https://arxiv.org/abs/2210.03629> — interleaves reasoning with tool actions and observations. *The act-observe / verify loop.*
+- **MRKL Systems** — <https://arxiv.org/abs/2205.00445> — neuro-symbolic routing of exact tasks (e.g. arithmetic) out of the LM. *Earliest formal statement.*
+
+**Why character tasks fail (the "strawberry" problem)**
+
+- **The Strawberry Problem** — <https://arxiv.org/abs/2505.14172> — character-level understanding emerges only late in training under BPE tokenization.
+- **Counting Ability of LLMs & Tokenization** — <https://arxiv.org/abs/2410.19730> — GPT-4-class models still miscount letters even with chain-of-thought; tied to token boundaries.
+- **CharBench** — <https://arxiv.org/abs/2508.02591> — a benchmark isolating tokenization's effect on character-level accuracy.
+
+This project's contribution is the packaging: a bundled guaranteed-correct
+calculator and string ops, a visualize-and-count method for characters, and a
+verify-then-re-derive backstop, applied as one reusable "principle."
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
